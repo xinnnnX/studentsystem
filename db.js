@@ -7,7 +7,6 @@ const pool = new Pool({
 });
 
 async function initTable() {
-    const tmp = `DROP TABLE IF EXISTS students;`;
     const createTableSql = `
     CREATE TABLE IF NOT EXISTS students (
         id SERIAL PRIMARY KEY,
@@ -20,7 +19,6 @@ async function initTable() {
         address TEXT NOT NULL
     )`;
     try {
-        await pool.query(tmp);
         await pool.query(createTableSql);
         console.log('Table initialized successfully');
     } catch (err) {
