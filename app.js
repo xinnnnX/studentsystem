@@ -6,8 +6,8 @@ const port = process.env.PORT || 3000;
 const path = require('path');
 
 const allowedOrigins = [
-    'https://xinnnnX.github.io',
-    'https://xinnnnX.github.io/studentsystem',
+    'https://xinnnnx.github.io',
+    'https://xinnnnx.github.io/studentsystem',
     'http://localhost:3000',
     'http://127.0.0.1:3000'
 ];
