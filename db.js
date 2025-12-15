@@ -12,8 +12,8 @@ async function initTable() {
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         gender TEXT NOT NULL,
-        studentId TEXT NOT NULL UNIQUE,
-        birthDate DATE NOT NULL,
+        "studentId" TEXT NOT NULL UNIQUE,
+        "birthDate" DATE NOT NULL,
         phone TEXT NOT NULL,
         email TEXT NOT NULL,
         address TEXT NOT NULL
@@ -37,7 +37,7 @@ pool.connect((err, client, done) => {
 });
 
 function checkDuplicate(student, id, callback) {
-    const studentIdSql = `SELECT 1 FROM students WHERE studentId = $1 AND (id != $2 OR $2 IS NULL)`;
+    const studentIdSql = `SELECT 1 FROM students WHERE "studentId" = $1 AND (id != $2 OR $2 IS NULL)`;
     pool.query(studentIdSql, [student.studentId, id], (err, result) => {
         if (err) return callback(err, null);
         if (result.rows.length > 0) {
@@ -76,7 +76,7 @@ module.exports = {
     addStudent: (student, force = false, callback) => {
         const insert = () => {
             const sql = `
-                INSERT INTO students (name, gender, studentId, birthDate, phone, email, address)
+                INSERT INTO students (name, gender, "studentId", "birthDate", phone, email, address)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id
             `;
@@ -123,12 +123,12 @@ module.exports = {
         if (filterColumn && filterKeyword) {
             const paramIndex = params.length + 1;
             if (filterColumn === 'birthDate') {
-                querySql += ` WHERE ${filterColumn} ILIKE $${paramIndex}`;
-                countSql += ` WHERE ${filterColumn} ILIKE $${paramIndex}`;
+                querySql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
+                countSql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
                 params.push(`%${filterKeyword}%`);
             } else {
-                querySql += ` WHERE ${filterColumn} ILIKE $${paramIndex}`;
-                countSql += ` WHERE ${filterColumn} ILIKE $${paramIndex}`;
+                querySql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
+                countSql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
                 params.push(`%${filterKeyword.toLowerCase()}%`);
             }
         }
@@ -164,7 +164,7 @@ module.exports = {
         const update = () => {
             const sql = `
                 UPDATE students
-                SET name = $1, gender = $2, studentId = $3, birthDate = $4, phone = $5, email = $6, address = $7
+                SET name = $1, gender = $2, "studentId" = $3, "birthDate" = $4, phone = $5, email = $6, address = $7
                 WHERE id = $8
                 RETURNING *
             `;
