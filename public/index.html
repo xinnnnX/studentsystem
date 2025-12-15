@@ -1,0 +1,720 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生資料管理系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>學生資料管理系統</h1>
+
+        <div id="mainPage" class="page active">
+            <button class="main-btn" onclick="showPage('addPage')">新增</button>
+            <button class="main-btn" onclick="showPage('queryPage')">查詢</button>
+        </div>
+
+        <div id="addPage" class="page form-page">
+            <h2>新增學生</h2>
+            <form id="addForm">
+                <div class="form-group">
+                    <label>姓名：</label>
+                    <input type="text" id="name" required>
+                    <div class="error-Tip" id="nameTip"></div>
+                </div>
+                <div class="form-group">
+                    <label>性別：</label>
+                    <select id="gender" required>
+                        <option value="" disabled selected>請選擇</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>學號：</label>
+                    <input type="text" id="studentId" required>
+                    <div class="error-Tip" id="studentIdTip"></div>
+                </div>
+                <div class="form-group">
+                    <label>出生日期：</label>
+                    <input type="date" id="birthDate" required max="">
+                </div>
+                <div class="form-group">
+                    <label>聯繫電話：</label>
+                    <input type="tel" id="phone" required>
+                    <div class="error-Tip" id="telTip"></div>
+                </div>
+                <div class="form-group">
+                    <label>郵箱：</label>
+                    <input type="email" id="email" required>
+                    <div class="error-Tip" id="emailTip"></div>
+                </div>
+                <div class="form-group">
+                    <label>家庭住址：</label>
+                    <input type="text" id="address" required>
+                </div>
+                <button type="submit" class="btn add-btn">新增</button>
+                <button type="reset" class="btn clear-btn">重設</button>
+                <button type="button" class="btn back-btn" onclick="showPage('mainPage')">返回主界面</button>
+            </form>
+        </div>
+
+        <div id="queryPage" class="page query-page">
+            <div class="filter-container">
+                <select id="filterColumn">
+                    <option value="" disabled selected>請選擇</option>
+                    <option value="name">姓名</option>
+                    <option value="gender">性別</option>
+                    <option value="studentId">學號</option>
+                    <option value="birthDate">出生日期</option>
+                    <option value="phone">聯繫電話</option>
+                    <option value="email">郵箱</option>
+                    <option value="address">家庭住址</option>
+                </select>
+                <input type="text" id="filterKeyword" placeholder="輸入篩選關鍵詞">
+                <button class="btn filter-btn" onclick="checkApplyFilter()">篩選</button>
+                <button class="btn clear-filter-btn" onclick="clearFilter()">清除篩選</button>
+            </div>
+
+            <h2>學生列表</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>操作</th>
+                            <th>
+                                ID
+                                <span class="sort-icon" id="sortasc" onclick="sortData('id', 'asc')">▲</span>
+                                <span class="sort-icon" id="sortdesc" onclick="sortData('id', 'desc')">▼</span>
+                            </th>
+                            <th>姓名</th>
+                            <th>性別</th>
+                            <th>學號</th>
+                            <th>出生日期</th>
+                            <th>聯繫電話</th>
+                            <th>郵箱</th>
+                            <th>家庭住址</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTable">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <div class="page-size-control">
+                    <label>每頁資料數：</label>
+                    <input type="number" id="pageSizeInput" value="10" min="1" max="100" onchange="setPageSize(this.value)">
+                </div>
+                <button class="btn" onclick="changePage(currentPage - 1)" id="prevBtn">上一頁</button>
+                <span id="pageInfo"></span>
+                <button class="btn" onclick="changePage(currentPage + 1)" id="nextBtn">下一頁</button>
+                <span id="totalInfo"></span>
+            </div>
+
+            <button class="btn back-btn" onclick="showPage('mainPage')">返回主界面</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://.onrender.com/api';
+
+        const warningIcon = "&#9888;";
+
+        let currentPage = 1;
+        let sortField = 'id';
+        let sortOrder = 'asc';
+        let filterColumn = '';
+        let filterKeyword = '';
+        let pageSize = 10;
+        const minPageSize = 1;
+        const maxPageSize = 100;
+        let editingId = null;
+        let filtered = false;
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+            if (pageId === 'queryPage') {
+                renderList();
+            }
+        }
+
+        function setMaxDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('birthDate')?.setAttribute('max', today);
+        }
+        window.addEventListener('load', setMaxDate);
+
+        function checkName(name) {
+            const trimedName = name.trim();
+            if (name.length !== trimedName.length)
+                return '首尾不能有空格';
+            if (trimedName.length < 2)
+                return '長度至少爲2';
+            if (trimedName.length > 50)
+                return '長度超出';
+
+            const illegalChar = trimedName.match(/[^\u4e00-\u9fa5a-zA-Z\s]/);
+            if (illegalChar)
+                return `包含非法字符：${illegalChar[0]}`;
+            return '';
+        }
+
+        function checkStudentId(id) {
+            const illegalChar = id.match(/[^0-9]/);
+            if (illegalChar)
+                return `包含非法字符：${illegalChar[0]}`;
+            return '';
+        }
+
+        function checkTel(tel) {
+            if (tel.length < 7)
+                return '長度至少爲7';
+            if (tel.length > 15)
+                return '長度超出';
+
+            const telReg = /^(\+)?\d+$/;
+            if (!telReg.test(tel)) {
+                const illegalChar = tel.match(/[^0-9+]/)?.[0];
+                if (illegalChar) {
+                    return `包含非法字符：${illegalChar}`;
+                } else {
+                    return '包含非法字符：+';
+                }
+            }
+            return '';
+        }
+
+        function checkEmail(email) {
+            const trimedEmail = email.trim();
+            const num = trimedEmail.split('@').length - 1;
+            if (num > 1) {
+                return '包含多個@';
+            }
+            else if (num === 1) {
+                if (trimedEmail.indexOf("@") === 0 || trimedEmail.indexOf("@") === trimedEmail.length - 1)
+                    return '首尾不能爲@';
+            }
+            else {
+                return '需包含@';
+            }
+
+            const [prefix, domain] = trimedEmail.split('@');
+            const prefixIllegal = prefix.match(/[^a-zA-Z0-9_-]/);
+            const domainIllegal = domain.match(/[^a-zA-Z0-9.]/);
+
+            if (!domain.includes('.'))
+                return '需包含域名';
+            if (domain.includes('..'))
+                return '包含非法字符：..';
+            if (domain.indexOf(".") === 0 || domain[domain.length - 1] === '.')
+                return '首尾不能爲.';
+
+            if (prefixIllegal)
+                return `包含非法字符：${prefixIllegal[0]}`;
+            if (domainIllegal || domain.length < 5)
+                return '域名無效';
+
+            if (trimedEmail.length > 50)
+                return '長度超出';
+            return '';
+        }
+
+        function hideTip() {
+            [nameTip, studentIdTip, telTip, emailTip].forEach(tip => {
+                tip.innerHTML = '';
+                tip.classList.remove('show');
+            });
+        }
+
+        function validateAll() {
+            const name = document.getElementById('name').value;
+            const studentId = document.getElementById('studentId').value;
+            const tel = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
+
+            const nameTip = document.getElementById('nameTip');
+            const studentIdTip = document.getElementById('studentIdTip');
+            const telTip = document.getElementById('telTip');
+            const emailTip = document.getElementById('emailTip');
+
+            [nameTip, studentIdTip, telTip, emailTip].forEach(tip => {
+                tip.innerHTML = '';
+                tip.classList.remove('show');
+            });
+
+            let isValid = true;
+            const nameErr = checkName(name);
+            if (nameErr) {
+                nameTip.innerHTML = `${warningIcon} ${nameErr}`;
+                nameTip.classList.add('show');
+                isValid = false;
+            }
+            const studentIdErr = checkStudentId(studentId);
+            if (studentIdErr) {
+                studentIdTip.innerHTML = `${warningIcon} ${studentIdErr}`;
+                studentIdTip.classList.add('show');
+                isValid = false;
+            }
+            const telErr = checkTel(tel);
+            if (telErr) {
+                telTip.innerHTML = `${warningIcon} ${telErr}`;
+                telTip.classList.add('show');
+                isValid = false;
+            }
+            const emailErr = checkEmail(email);
+            if (emailErr) {
+                emailTip.innerHTML = `${warningIcon} ${emailErr}`;
+                emailTip.classList.add('show');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        document.getElementById('addForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const isValid = validateAll();
+            if (!isValid) {
+                document.addEventListener('click', hideTip, { once: true });
+                return;
+            }
+
+            const submitStudent = async (force = false) => {
+                const newStudent = {
+                    name: document.getElementById('name').value,
+                    gender: document.getElementById('gender').value,
+                    studentId: document.getElementById('studentId').value,
+                    birthDate: document.getElementById('birthDate').value,
+                    phone: document.getElementById('phone').value,
+                    email: document.getElementById('email').value,
+                    address: document.getElementById('address').value
+                };
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/students`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ student: newStudent, force })
+                    });
+                    const result = await response.json();
+
+                    switch (result.code) {
+                        case 0:
+                            alert('新增成功！');
+                            this.reset();
+                            break;
+                        case 1:
+                            const confirmAdd = confirm(`檢測到重複姓名，是否確認新增？`);
+                            if (confirmAdd) {
+                                submitStudent(true);
+                            }
+                            break;
+                        case -1:
+                            alert('新增失敗：' + result.msg);
+                            break;
+                        case -2:
+                            alert('新增失敗：學號已存在，請檢查');
+                            break;
+                        case -3:
+                            alert('新增失敗：電話已存在，請檢查');
+                            break;
+                        case -4:
+                            alert('新增失敗：郵箱已存在，請檢查');
+                            break;
+                        default:
+                            alert('未知錯誤：' + (result.msg || '新增失敗'));
+                            break;
+                    }
+                } catch (error) {
+                    alert('網路錯誤，新增失敗');
+                }
+            };
+
+            submitStudent(false);
+        });
+
+        async function renderList() {
+            const tableBody = document.getElementById('studentTable');
+            tableBody.innerHTML = '<tr><td colspan="9" align="center">載入中...</td></tr>';
+
+            try {
+                const params = new URLSearchParams({
+                    filterColumn: filterColumn,
+                    filterKeyword: filterKeyword,
+                    sortField: sortField,
+                    sortOrder: sortOrder,
+                    page: currentPage,
+                    pageSize: pageSize
+                });
+
+                const response = await fetch(`${API_BASE_URL}/students?${params}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    tableBody.innerHTML = '<tr><td colspan="9" align="center">查詢失敗：' + result.message + '</td></tr>';
+                    return;
+                }
+
+                const { list: students, total, totalPages } = result.data;
+
+                const offset = (currentPage - 1) * pageSize;
+                if (offset >= total && currentPage > 1) {
+                    currentPage -= 1;
+                    renderList();
+                    return;
+                }
+
+                if (students.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="9" align="center">暫無學生資料</td></tr>';
+                } else {
+                    tableBody.innerHTML = students.map(student => {
+                        if (editingId === student.id) {
+                            return `
+                                <tr data-id="${student.id}">
+                                    <td class="edit-btn-group">
+                                        <button class="btn confirm-btn" onclick="saveEdit(${student.id})">確認</button>
+                                        <button class="btn cancel-btn" onclick="cancelEdit()">取消</button>
+                                    </td>
+                                    <td>${student.id}</td>
+                                    <td class="edit-cell"><input type="text" id="edit-name" value="${student.name}"></td>
+                                    <td class="edit-cell">
+                                        <select id="edit-gender" required>
+                                            <option value="男" ${student.gender === '男' ? 'selected' : ''}>男</option>
+                                            <option value="女" ${student.gender === '女' ? 'selected' : ''}>女</option>
+                                        </select>
+                                    </td>
+                                    <td class="edit-cell"><input type="text" id="edit-studentId" value="${student.studentId}"></td>
+                                    <td class="edit-cell"><input type="date" id="edit-birthDate" value="${student.birthDate}"></td>
+                                    <td class="edit-cell"><input type="tel" id="edit-phone" value="${student.phone}"></td>
+                                    <td class="edit-cell"><input type="email" id="edit-email" value="${student.email}"></td>
+                                    <td class="edit-cell"><input type="text" id="edit-address" value="${student.address}"></td>
+                                </tr>
+                            `;
+                        } else {
+                            return `
+                                <tr data-id="${student.id}">
+                                    <td>
+                                        <button class="btn edit-btn" onclick="startEdit(${student.id})">修改</button>
+                                        <button class="btn delete-btn" onclick="deleteStudent(${student.id})">刪除</button>
+                                    </td>
+                                    <td>${student.id}</td>
+                                    <td>${student.name}</td>
+                                    <td>${student.gender}</td>
+                                    <td>${student.studentId}</td>
+                                    <td>${student.birthDate}</td>
+                                    <td>${student.phone}</td>
+                                    <td>${student.email}</td>
+                                    <td>${student.address}</td>
+                                </tr>
+                            `;
+                        }
+                    }).join('');
+                }
+
+                document.getElementById('pageInfo').textContent = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
+                document.getElementById('totalInfo').textContent = `總計：${total} 條記錄`;
+                document.getElementById('prevBtn').disabled = currentPage === 1;
+                document.getElementById('nextBtn').disabled = currentPage === totalPages;
+
+                if (editingId !== null) {
+                    const btnElements = [
+                        document.getElementById('prevBtn'),
+                        document.getElementById('nextBtn'),
+                        ...document.querySelectorAll('.edit-btn'),
+                        ...document.querySelectorAll('.delete-btn')
+                    ];
+                    btnElements.forEach(el => {
+                        if (el) el.disabled = true;
+                    });
+
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('edit-birthDate').max = today;
+                }
+
+            } catch (error) {
+                tableBody.innerHTML = '<tr><td colspan="9" align="center">網路錯誤，無法載入</td></tr>';
+            }
+        }
+
+        function toggleEditMode(isEditing) {
+            const btnsToDisable = [
+                document.querySelector('.filter-btn'),
+                document.querySelector('.clear-filter-btn'),
+                document.getElementById('pageSizeInput'),
+                document.querySelector('#queryPage .back-btn')
+            ];
+
+            btnsToDisable.forEach(el => {
+                if (el) el.disabled = isEditing;
+            });
+
+            if (!filtered) {
+                document.getElementById('filterColumn').disabled = isEditing;
+                document.getElementById('filterKeyword').disabled = isEditing;
+            }
+
+            const sortElements = [
+                document.getElementById('sortasc'),
+                document.getElementById('sortdesc')
+            ];
+            sortElements.forEach(el => {
+                if (el) {
+                    if (isEditing) {
+                        el.classList.add('disabled');
+                        el.style.pointerEvents = 'none';
+                    } else {
+                        el.classList.remove('disabled');
+                        el.style.pointerEvents = 'auto';
+                    }
+                }
+            });
+        }
+
+        function startEdit(id) {
+            editingId = id;
+            toggleEditMode(true);
+            renderList();
+        }
+
+        function checkEmptyUpdate(fields) {
+            let alertMsg = '';
+            for (const field of fields) {
+                const input = document.getElementById(`edit-${field}`);
+                if (!input) continue;
+
+                const value = input.value;
+                if (!value) {
+                    switch (field) {
+                        case 'name':
+                            alertMsg += '姓名 ';
+                            break;
+                        case 'studentId':
+                            alertMsg += '學號 ';
+                            break;
+                        case 'birthDate':
+                            alertMsg += '生日 ';
+                            break;
+                        case 'phone':
+                            alertMsg += '電話 ';
+                            break;
+                        case 'email':
+                            alertMsg += '郵箱 ';
+                            break;
+                        case 'address':
+                            alertMsg += '住址 ';
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            return alertMsg;
+        }
+
+        function validateUpdate(fields) {
+            let alertMsg = '';
+            for (const field of fields) {
+                const input = document.getElementById(`edit-${field}`);
+                if (!input) continue;
+
+                const value = input.value;
+                let msg = '';
+                switch (field) {
+                    case 'name':
+                        msg = checkName(value);
+                        if (msg) alertMsg += `\u26A0 姓名${msg}\n`;
+                        break;
+                    case 'studentId':
+                        msg = checkStudentId(value);
+                        if (msg) alertMsg += `\u26A0 學號${msg}\n`;
+                        break;
+                    case 'phone':
+                        msg = checkTel(value);
+                        if (msg) alertMsg += `\u26A0 電話${msg}\n`;
+                        break;
+                    case 'email':
+                        msg = checkEmail(value);
+                        if (msg) alertMsg += `\u26A0 郵箱${msg}\n`;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return alertMsg;
+        }
+
+        function saveEdit(id) {
+            const fields = ['name', 'studentId', 'birthDate', 'phone', 'email', 'address'];
+            let alertMsg = '';
+
+            alertMsg = checkEmptyUpdate(fields);
+            if (alertMsg) {
+                alert(`${alertMsg}爲必填！`);
+                renderList();
+                return;
+            }
+
+            alertMsg = validateUpdate(fields);
+            if (alertMsg) {
+                alert(`${alertMsg}`);
+                return;
+            }
+
+            const updateStudent = async (force = false) => {
+                const updatedStudent = {
+                    name: document.getElementById('edit-name').value,
+                    gender: document.getElementById('edit-gender').value,
+                    studentId: document.getElementById('edit-studentId').value,
+                    birthDate: document.getElementById('edit-birthDate').value,
+                    phone: document.getElementById('edit-phone').value,
+                    email: document.getElementById('edit-email').value,
+                    address: document.getElementById('edit-address').value
+                };
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ student: updatedStudent, force })
+                    });
+                    const result = await response.json();
+
+                    switch (result.code) {
+                        case 0:
+                            alert('修改成功！');
+                            editingId = null;
+                            toggleEditMode(false);
+                            renderList();
+                            break;
+                        case 1:
+                            const confirmAdd = confirm(`檢測到重複姓名，是否確認修改？`);
+                            if (confirmAdd) {
+                                updateStudent(true);
+                            }
+                            break;
+                        case -1:
+                            alert('修改失敗：' + result.msg);
+                            break;
+                        case -2:
+                            alert('修改失敗：學號已存在，請檢查');
+                            break;
+                        case -3:
+                            alert('修改失敗：電話已存在，請檢查');
+                            break;
+                        case -4:
+                            alert('修改失敗：郵箱已存在，請檢查');
+                            break;
+                        default:
+                            alert('未知錯誤：' + (result.msg || '修改失敗'));
+                            break;
+                    }
+                } catch (error) {
+                    alert('網路錯誤，修改失敗');
+                }
+            };
+
+            updateStudent(false);
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            toggleEditMode(false);
+            renderList();
+        }
+
+        function sortData(field, order) {
+            sortField = field;
+            sortOrder = order;
+            currentPage = 1;
+            renderList();
+        }
+
+        function changePage(page) {
+            if (page < 1) return;
+            currentPage = page;
+            renderList();
+        }
+
+        function checkApplyFilter() {
+            const filterColumnEl = document.getElementById('filterColumn');
+            const filterKeywordEl = document.getElementById('filterKeyword');
+
+            const col = filterColumnEl.value;
+            const key = filterKeywordEl.value.trim();
+
+            if (!col) {
+                filterColumnEl.focus();
+                return false;
+            }
+            if (!key) {
+                filterKeywordEl.focus();
+                return false;
+            }
+
+            filterColumn = col;
+            filterKeyword = key;
+            document.getElementById('filterColumn').disabled = true;
+            document.getElementById('filterKeyword').disabled = true;
+
+            filtered = true;
+            currentPage = 1;
+            renderList();
+        }
+
+        function clearFilter() {
+            const filterColumnEl = document.getElementById('filterColumn');
+            const filterKeywordEl = document.getElementById('filterKeyword');
+
+            filterColumnEl.value = '';
+            filterKeywordEl.value = '';
+            filterColumn = '';
+            filterKeyword = '';
+            document.getElementById('filterColumn').disabled = false;
+            document.getElementById('filterKeyword').disabled = false;
+
+            filtered = false;
+            currentPage = 1;
+            renderList();
+        }
+
+        function setPageSize(value) {
+            let newSize = parseInt(value);
+            if (isNaN(newSize)) newSize = pageSize;
+            if (newSize < minPageSize) newSize = minPageSize;
+            if (newSize > maxPageSize) newSize = maxPageSize;
+
+            pageSize = newSize;
+            document.getElementById('pageSizeInput').value = pageSize;
+            currentPage = 1;
+            renderList();
+        }
+
+        async function deleteStudent(id) {
+            if (!confirm('確定要刪除此學生資料嗎？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    renderList();
+                } else {
+                    alert('刪除失敗：' + result.message);
+                }
+            } catch (error) {
+                alert('網路錯誤，刪除失敗');
+            }
+        }
+
+    </script>
+</body>
+</html>
