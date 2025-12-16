@@ -123,8 +123,8 @@ module.exports = {
         if (filterColumn && filterKeyword) {
             const paramIndex = params.length + 1;
             if (filterColumn === 'birthDate') {
-                querySql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
-                countSql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
+                querySql += ` WHERE to_char("birthDate", \'YYYY-MM-DD\') ILIKE $${paramIndex}`;
+                countSql += ` WHERE to_char("birthDate", \'YYYY-MM-DD\') ILIKE $${paramIndex}`;
                 params.push(`%${filterKeyword}%`);
             } else {
                 querySql += ` WHERE "${filterColumn}" ILIKE $${paramIndex}`;
