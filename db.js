@@ -116,7 +116,7 @@ module.exports = {
 
     getStudents: (options, callback) => {
         const { filterColumn, filterKeyword, sortField, sortOrder, page, pageSize } = options;
-        let querySql = 'SELECT * FROM students';
+        let querySql = 'SELECT id, name, gender, "studentId", to_char("birthDate", \'YYYY-MM-DD\') AS "birthDate", phone, email, address FROM students';
         let countSql = 'SELECT COUNT(*) AS total FROM students';
         const params = [];
 
